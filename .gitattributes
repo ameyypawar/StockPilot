@@ -1,0 +1,6 @@
+* text=auto
+*.sln text eol=crlf
+*.png binary
+*.ico binary
+*.pptx binary
+*.docx binary
