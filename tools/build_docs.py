@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
@@ -38,168 +39,67 @@ from docx.oxml.ns import qn as docx_qn
 from docx.oxml import OxmlElement
 
 ROOT = Path(__file__).resolve().parent.parent
+TOOLS_DIR = Path(__file__).resolve().parent
+if str(TOOLS_DIR) not in sys.path:
+    sys.path.insert(0, str(TOOLS_DIR))
 
 # ---------------------------------------------------------------------------
-# Configuration (tools/doc_config.py is owned by another agent; read-only)
+# Shared config/colours/test-results now live in tools/common.py (imported by
+# both this module and tools/ppt_builder.py, so they stay in sync).
+# ---------------------------------------------------------------------------
+from common import (  # noqa: E402
+    cfg,
+    PROJECT_TITLE,
+    PROJECT_SUBTITLE,
+    PROJECT_TAGLINE,
+    FULL_TITLE,
+    TEAM_MEMBERS,
+    COLLEGE,
+    DEPARTMENT,
+    GUIDE,
+    ACADEMIC_YEAR,
+    COURSE,
+    BASE_REPO_URL,
+    BASE_REPO_CREDIT,
+    DARK_HEX,
+    TEAL_HEX,
+    LIGHT_HEX,
+    SLATE_HEX,
+    WHITE_HEX,
+    DANGER_HEX,
+    WARN_HEX,
+    OK_HEX,
+    hx,
+    DARK_RGB,
+    TEAL_RGB,
+    LIGHT_RGB,
+    SLATE_RGB,
+    WHITE_RGB,
+    DARK_DOCX,
+    TEAL_DOCX,
+    SLATE_DOCX,
+    load_test_results,
+    FALLBACK_TEST_CASES,
+    status_color,
+)
+
+# ---------------------------------------------------------------------------
+# tools/doc_config.py is owned by another agent; read-only. common.py already
+# reads it for the values above -- this stays only so any code below that
+# still calls cfg(...) directly keeps working unchanged.
 # ---------------------------------------------------------------------------
 try:
-    import doc_config  # type: ignore
+    import doc_config  # type: ignore  # noqa: F401  (already read by common.py; kept importable)
 except Exception:
     doc_config = None
 
-
-def cfg(name, default):
-    if doc_config is None:
-        return default
-    return getattr(doc_config, name, default)
-
-
-PROJECT_TITLE = cfg("PROJECT_TITLE", "StockPilot")
-PROJECT_SUBTITLE = cfg("PROJECT_SUBTITLE", "Inventory Management System")
-PROJECT_TAGLINE = cfg(
-    "PROJECT_TAGLINE",
-    "Console Application, ASP.NET Core MVC Web App & Progressive Web App",
-)
-FULL_TITLE = f"{PROJECT_TITLE} — {PROJECT_SUBTITLE}" if PROJECT_SUBTITLE else PROJECT_TITLE
-
-_DEFAULT_TEAM = [
-    "[Team Member 1 — Roll No.]",
-    "[Team Member 2 — Roll No.]",
-    "[Team Member 3 — Roll No.]",
-]
-
-
-def _team_members():
-    raw = cfg("TEAM_MEMBERS", _DEFAULT_TEAM)
-    out = []
-    for m in raw:
-        if isinstance(m, (list, tuple)):
-            parts = [str(p) for p in m if str(p).strip()]
-            out.append(" — ".join(parts))
-        else:
-            out.append(str(m))
-    return out or list(_DEFAULT_TEAM)
-
-
-TEAM_MEMBERS = _team_members()
-COLLEGE = cfg("COLLEGE", "[College Name]")
-DEPARTMENT = cfg("DEPARTMENT", "[Department Name]")
-GUIDE = cfg("GUIDE", "[Guide Name]")
-ACADEMIC_YEAR = cfg("ACADEMIC_YEAR", "[2026–27]")
-COURSE = cfg("COURSE", "[Course / Programme Name]")
-BASE_REPO_URL = cfg("BASE_REPO_URL", "https://github.com/MilanGite06/InventoryManagementSystem")
-BASE_REPO_CREDIT = cfg(
-    "BASE_REPO_CREDIT",
-    "Base project by Milan Gite (MilanGite06/InventoryManagementSystem)",
-)
-
-# ---------------------------------------------------------------------------
-# Brand colours
-# ---------------------------------------------------------------------------
-DARK_HEX = "1E293B"     # dark slate
-TEAL_HEX = "0D9488"     # teal accent
-LIGHT_HEX = "F8FAFC"    # off-white background
-SLATE_HEX = "475569"    # body text grey
-WHITE_HEX = "FFFFFF"
-DANGER_HEX = "DC2626"
-WARN_HEX = "D97706"
-OK_HEX = "16A34A"
-
-
-def hx(h):
-    h = h.lstrip("#")
-    return tuple(int(h[i : i + 2], 16) for i in (0, 2, 4))
-
-
-DARK_RGB = hx(DARK_HEX)
-TEAL_RGB = hx(TEAL_HEX)
-LIGHT_RGB = hx(LIGHT_HEX)
-SLATE_RGB = hx(SLATE_HEX)
-WHITE_RGB = hx(WHITE_HEX)
-
+# PPTX-specific colour objects (not in common.py, which only builds docx
+# RGBColor objects) -- used by the fallback build_pptx() below.
 DARK_PPTX = PptxColor(*DARK_RGB)
 TEAL_PPTX = PptxColor(*TEAL_RGB)
 LIGHT_PPTX = PptxColor(*LIGHT_RGB)
 SLATE_PPTX = PptxColor(*SLATE_RGB)
 WHITE_PPTX = PptxColor(*WHITE_RGB)
-
-DARK_DOCX = DocxColor(*DARK_RGB)
-TEAL_DOCX = DocxColor(*TEAL_RGB)
-SLATE_DOCX = DocxColor(*SLATE_RGB)
-
-
-# ---------------------------------------------------------------------------
-# Test results (owned by the main coder; never invent "Pass")
-# ---------------------------------------------------------------------------
-FALLBACK_TEST_CASES = [
-    dict(id="TC-01", area="Auth", test="Log in with valid admin credentials (admin / Admin@123)",
-         expected="Redirect to Dashboard; session established"),
-    dict(id="TC-02", area="Auth", test="Log in with a wrong password",
-         expected="Error message shown; stays on Login"),
-    dict(id="TC-03", area="Auth", test="Request /Product while logged out",
-         expected="Redirect to /Account/Login"),
-    dict(id="TC-04", area="Auth", test="Request /api/products while logged out",
-         expected="401 JSON response"),
-    dict(id="TC-05", area="Auth", test="Change password with the wrong current password",
-         expected="Error shown; password unchanged"),
-    dict(id="TC-06", area="Auth", test="Change password correctly, then log in with the new password",
-         expected="Success message; new password works"),
-    dict(id="TC-07", area="Category", test="Delete a category that is still used by a product",
-         expected="Delete blocked with an explanatory message"),
-    dict(id="TC-08", area="Product", test="Search products by name/category/supplier",
-         expected="Only matching products are listed"),
-    dict(id="TC-09", area="Stock", test="Stock In a valid quantity",
-         expected="Quantity increases; transaction logged"),
-    dict(id="TC-10", area="Stock", test="Stock Out a quantity greater than available",
-         expected="\"Insufficient stock\" error; quantity unchanged"),
-    dict(id="TC-11", area="Stock", test="Stock In / Stock Out with a zero or negative quantity",
-         expected="Request rejected"),
-    dict(id="TC-12", area="Dashboard", test="Total Inventory Value KPI",
-         expected="Matches sum(QuantityAvailable * Price) across all products"),
-    dict(id="TC-13", area="Reports", test="Transaction History filtered by type=StockOut and a date range",
-         expected="Only matching rows are shown"),
-    dict(id="TC-14", area="Reports", test="Print a report",
-         expected="Print layout hides navigation/buttons; shows a clean report"),
-    dict(id="TC-15", area="Console", test="Log in as viewer and attempt to add a product",
-         expected="\"Access denied: viewers cannot modify data.\""),
-    dict(id="TC-16", area="Console", test="Send EOF on stdin mid-session",
-         expected="\"No more input. Exiting.\" and a clean exit"),
-    dict(id="TC-17", area="PWA", test="Request /manifest.json, /sw.js, /offline.html, /icons/icon-192.png",
-         expected="200 OK with the correct content types"),
-]
-
-
-def load_test_results():
-    """Returns (rows, is_real). rows always have id/area/test/expected/actual/status."""
-    path = ROOT / "tools" / "test_results.json"
-    if path.exists():
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-            if isinstance(data, list) and data:
-                rows = []
-                for r in data:
-                    rows.append(
-                        dict(
-                            id=str(r.get("id", "")),
-                            area=str(r.get("area", "")),
-                            test=str(r.get("test", "")),
-                            expected=str(r.get("expected", "")),
-                            actual=str(r.get("actual", "")),
-                            status=str(r.get("status", "")),
-                        )
-                    )
-                return rows, True
-        except Exception:
-            pass
-    rows = []
-    for tc in FALLBACK_TEST_CASES:
-        rows.append(
-            dict(
-                id=tc["id"], area=tc["area"], test=tc["test"], expected=tc["expected"],
-                actual="Pending", status="Pending",
-            )
-        )
-    return rows, False
 
 
 # ===========================================================================
@@ -502,15 +402,6 @@ def add_table(slide, left, top, width, height, headers, rows, font_size=11):
     return gtable
 
 
-def status_color(status):
-    s = (status or "").strip().lower()
-    if s == "pass":
-        return hx(OK_HEX)
-    if s == "fail":
-        return hx(DANGER_HEX)
-    return hx(WARN_HEX)
-
-
 def build_pptx():
     prs = Presentation()
     prs.slide_width = Inches(13.333)
@@ -761,110 +652,13 @@ def build_pptx():
 
 
 # ===========================================================================
-# 3. Final Report (.docx)
+# 3. UserManual.md -> UserManual.docx (small markdown converter)
+# ---------------------------------------------------------------------------
+# The Final Report build (style_document, add_toc, add_docx_table, the title
+# page and chapters, build_final_report) now lives in tools/report_builder.py
+# -- it is owned and improved there. The two small helpers below are kept
+# here only because the UserManual converter needs them too.
 # ===========================================================================
-
-DATA_DICTIONARY = {
-    "Categories": [
-        ("CategoryId", "int", "PK, identity"),
-        ("CategoryName", "nvarchar(100)", "required, unique index"),
-        ("Description", "nvarchar(250)", "optional"),
-    ],
-    "Suppliers": [
-        ("SupplierId", "int", "PK, identity"),
-        ("SupplierName", "nvarchar(150)", "required"),
-        ("ContactNumber", "nvarchar(20)", "optional"),
-        ("Email", "nvarchar(150)", "optional, email format"),
-        ("Address", "nvarchar(250)", "optional"),
-    ],
-    "Products": [
-        ("ProductId", "int", "PK, identity"),
-        ("ProductName", "nvarchar(150)", "required, indexed"),
-        ("Price", "decimal(10,2)", "CK_Products_Price >= 0"),
-        ("Unit", "nvarchar(20)", "required, e.g. pcs/kg/L"),
-        ("CategoryId", "int", "FK -> Categories, ON DELETE RESTRICT"),
-        ("SupplierId", "int", "FK -> Suppliers, ON DELETE RESTRICT"),
-    ],
-    "Stocks": [
-        ("StockId", "int", "PK, identity"),
-        ("ProductId", "int", "FK -> Products, unique index, ON DELETE CASCADE"),
-        ("QuantityAvailable", "int", "CK_Stocks_QuantityAvailable >= 0"),
-        ("ReorderLevel", "int", "CK_Stocks_ReorderLevel >= 0"),
-        ("LastUpdated", "datetime2", "defaults to current time"),
-    ],
-    "StockTransactions": [
-        ("TransactionId", "int", "PK, identity"),
-        ("ProductId", "int", "FK -> Products, ON DELETE CASCADE, indexed"),
-        ("Type", "nvarchar(10)", "CK_StockTransactions_Type IN ('StockIn','StockOut')"),
-        ("Quantity", "int", "CK_StockTransactions_Quantity > 0"),
-        ("TransactionDate", "datetime2", "indexed"),
-        ("PerformedBy", "nvarchar(100)", "required"),
-        ("Remarks", "nvarchar(250)", "optional"),
-    ],
-    "Users": [
-        ("UserId", "int", "PK, identity"),
-        ("Username", "nvarchar(50)", "required, unique index"),
-        ("PasswordHash", "nvarchar(256)", "required, hashed (PBKDF2-SHA512)"),
-        ("FullName", "nvarchar(100)", "required"),
-        ("Email", "nvarchar(150)", "optional, email format"),
-        ("Role", "nvarchar(20)", "required, e.g. Admin"),
-    ],
-}
-
-ROUTES = [
-    ("Account", "GET /Account/Login", "Show the login form"),
-    ("Account", "POST /Account/Login", "Validate credentials, start session"),
-    ("Account", "POST /Account/Logout", "Clear session, redirect to Login"),
-    ("Account", "GET/POST /Account/ChangePassword", "Change the current user's password"),
-    ("Home", "GET /", "Redirects to /Dashboard"),
-    ("Category", "GET /Category?searchTerm=", "List/search categories"),
-    ("Category", "GET/POST /Category/Create", "Create a category"),
-    ("Category", "GET/POST /Category/Edit/{id}", "Edit a category"),
-    ("Category", "GET /Category/Delete/{id} + POST confirm", "Delete a category (blocked if in use)"),
-    ("Product", "GET /Product?searchTerm=&categoryId=", "List/search/filter products"),
-    ("Product", "GET/POST /Product/Create", "Create a product (+ opening stock, reorder level)"),
-    ("Product", "GET/POST /Product/Edit/{id}", "Edit a product"),
-    ("Product", "GET /Product/Delete/{id} + POST confirm", "Delete a product (cascades to stock/transactions)"),
-    ("Supplier", "GET /Supplier?searchTerm=", "List/search suppliers"),
-    ("Supplier", "GET/POST /Supplier/Create", "Create a supplier"),
-    ("Supplier", "GET/POST /Supplier/Edit/{id}", "Edit a supplier"),
-    ("Supplier", "GET /Supplier/Delete/{id} + POST confirm", "Delete a supplier (blocked if in use)"),
-    ("Stock", "GET /Stock?searchTerm=&status=", "List/search/filter stock"),
-    ("Stock", "GET/POST /Stock/Initialize", "Set opening stock for a product with none"),
-    ("Stock", "GET/POST /Stock/StockIn?productId=", "Record a Stock In transaction"),
-    ("Stock", "GET/POST /Stock/StockOut?productId=", "Record a Stock Out transaction (guards negative stock)"),
-    ("Stock", "GET /Stock/Transactions?type=", "List stock transactions"),
-    ("Dashboard", "GET /Dashboard", "KPIs, low-stock list, category summary, recent activity"),
-    ("Report", "GET /Report", "Reports landing page"),
-    ("Report", "GET /Report/ProductCatalog", "Product catalog report"),
-    ("Report", "GET /Report/StockSummary", "Stock summary report"),
-    ("Report", "GET /Report/LowStock", "Low stock report"),
-    ("Report", "GET /Report/TransactionHistory", "Transaction history report"),
-    ("Report", "GET /Report/InventoryValue", "Inventory value report"),
-    ("Pwa", "GET /Pwa, /Pwa/Search, /Pwa/Stock, /Pwa/LowStock", "Mobile-first PWA pages"),
-    ("Api", "GET /api/products?q=", "JSON product list (optionally filtered)"),
-    ("Api", "GET /api/stock", "JSON stock list with status"),
-    ("Api", "GET /api/stock/low", "JSON low/out-of-stock list"),
-]
-
-SYLLABUS_MAPPING = [
-    ("Menu-driven console interface", "ConsoleApplication/Program.cs"),
-    ("Classes & encapsulation", "ConsoleApplication/Models/*.cs (private fields + validating setters)"),
-    ("Inheritance & polymorphism", "Person.cs -> Admin.cs / Staff.cs / User.cs, used by Services/UserService.cs"),
-    ("Exception handling", "Program.cs catch blocks + Exceptions/InsufficientStockException.cs"),
-    ("List / Dictionary collections", "ProductService / StockService (List); MasterDataService, UserService, ReportService.GenerateCategoryWiseReport (Dictionary)"),
-    ("Search", "ProductService.SearchProduct"),
-    ("Reports", "Reports/ReportService.cs"),
-    ("Login / Logout / Change Password", "AccountController.cs + Views/Account/* + Filters/SessionAuthFilter.cs"),
-    ("Master add/update/delete/search", "CategoryController, ProductController, SupplierController + views"),
-    ("Stock transactions + negative-stock prevention", "StockController.StockIn/StockOut + CK_Stocks_QuantityAvailable"),
-    ("Dashboard", "DashboardController + Views/Dashboard/Index.cshtml"),
-    ("Reports search/filter/print", "ReportController, Views/Report/*, site.css @media print, _ReportHeader.cshtml"),
-    ("SQL Server PK/FK/relationships, 6 normalized tables", "ApplicationDbContext.OnModelCreating, Database/SQLScripts/CreateTables.sql, Database/ERDiagram/README.md"),
-    ("PWA responsive/installable/SW/offline/notifications", "_Layout.cshtml, site.css, manifest.json, sw.js, pwa.js, pwa-pages.js, PwaController, InventoryApiController"),
-    ("PWA modules: Product Search / Low Stock Alerts / Stock Overview", "Views/Pwa/Search.cshtml, LowStock.cshtml, Stock.cshtml"),
-]
-
 
 def style_document(doc):
     normal = doc.styles["Normal"]
@@ -888,485 +682,11 @@ def style_document(doc):
     h3.font.bold = True
 
 
-def add_toc(document):
-    paragraph = document.add_paragraph()
-    run = paragraph.add_run()
-    fld_begin = OxmlElement("w:fldChar")
-    fld_begin.set(docx_qn("w:fldCharType"), "begin")
-    instr = OxmlElement("w:instrText")
-    instr.set(docx_qn("xml:space"), "preserve")
-    instr.text = 'TOC \\o "1-3" \\h \\z \\u'
-    fld_sep = OxmlElement("w:fldChar")
-    fld_sep.set(docx_qn("w:fldCharType"), "separate")
-    placeholder = OxmlElement("w:t")
-    placeholder.text = "Right-click here and choose \"Update Field\" (or press F9) to build the table of contents."
-    fld_sep.append(placeholder)
-    fld_end = OxmlElement("w:fldChar")
-    fld_end.set(docx_qn("w:fldCharType"), "end")
-    r = run._r
-    r.append(fld_begin)
-    r.append(instr)
-    r.append(fld_sep)
-    r.append(fld_end)
-
-
 def set_cell_shading(cell, hex_color):
     shd = OxmlElement("w:shd")
     shd.set(docx_qn("w:fill"), hex_color)
     cell._tc.get_or_add_tcPr().append(shd)
 
-
-def add_docx_table(document, headers, rows, widths=None):
-    table = document.add_table(rows=1, cols=len(headers))
-    table.style = "Table Grid"
-    table.alignment = WD_TABLE_ALIGNMENT.CENTER
-    hdr_cells = table.rows[0].cells
-    for i, h in enumerate(headers):
-        hdr_cells[i].text = str(h)
-        set_cell_shading(hdr_cells[i], DARK_HEX)
-        for p in hdr_cells[i].paragraphs:
-            for run in p.runs:
-                run.font.bold = True
-                run.font.color.rgb = DocxColor(0xFF, 0xFF, 0xFF)
-                run.font.size = DocxPt(10)
-    for row in rows:
-        cells = table.add_row().cells
-        for i, val in enumerate(row):
-            cells[i].text = str(val)
-            for p in cells[i].paragraphs:
-                for run in p.runs:
-                    run.font.size = DocxPt(10)
-    if widths:
-        for row in table.rows:
-            for i, w in enumerate(widths):
-                row.cells[i].width = w
-    document.add_paragraph()
-    return table
-
-
-def title_page(document):
-    for _ in range(3):
-        document.add_paragraph()
-    p = document.add_paragraph()
-    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    r = p.add_run(PROJECT_TITLE)
-    r.font.size = DocxPt(40)
-    r.font.bold = True
-    r.font.color.rgb = DARK_DOCX
-
-    p = document.add_paragraph()
-    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    r = p.add_run(PROJECT_SUBTITLE)
-    r.font.size = DocxPt(20)
-    r.font.color.rgb = TEAL_DOCX
-
-    p = document.add_paragraph()
-    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    r = p.add_run("Final Project Report")
-    r.font.size = DocxPt(15)
-    r.italic = True
-    r.font.color.rgb = SLATE_DOCX
-
-    for _ in range(2):
-        document.add_paragraph()
-
-    p = document.add_paragraph()
-    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    r = p.add_run(f"Submitted in partial fulfilment of the requirements of\n{COURSE}")
-    r.font.size = DocxPt(12)
-
-    document.add_paragraph()
-    p = document.add_paragraph()
-    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    r = p.add_run("Submitted by")
-    r.font.bold = True
-    for m in TEAM_MEMBERS:
-        p = document.add_paragraph()
-        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        p.add_run(m)
-
-    document.add_paragraph()
-    p = document.add_paragraph()
-    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    r = p.add_run(f"{DEPARTMENT}\n{COLLEGE}\nGuide: {GUIDE}\n{ACADEMIC_YEAR}")
-    r.font.size = DocxPt(12)
-    document.add_page_break()
-
-
-def certificate_page(document):
-    document.add_heading("Certificate", level=1)
-    document.add_paragraph(
-        f"This is to certify that the project titled \"{FULL_TITLE}\" has been "
-        f"successfully completed by the students named below, in partial "
-        f"fulfilment of the requirements of {COURSE}, during the academic "
-        f"year {ACADEMIC_YEAR}, under the guidance of {GUIDE}."
-    )
-    document.add_paragraph()
-    for m in TEAM_MEMBERS:
-        document.add_paragraph(m, style="List Bullet")
-    document.add_paragraph()
-    document.add_paragraph()
-    document.add_paragraph("_______________________________")
-    document.add_paragraph(f"{GUIDE}\nProject Guide")
-    document.add_paragraph()
-    document.add_paragraph("_______________________________")
-    document.add_paragraph("Head of Department")
-    document.add_page_break()
-
-
-def acknowledgement_page(document):
-    document.add_heading("Acknowledgement", level=1)
-    document.add_paragraph(
-        f"We would like to express our sincere gratitude to {GUIDE} for "
-        f"continuous guidance and support throughout this project, and to "
-        f"the {DEPARTMENT} of {COLLEGE} for providing the resources and "
-        f"opportunity to undertake this work. We also thank our peers and "
-        f"families for their encouragement during the development of "
-        f"{FULL_TITLE}."
-    )
-    document.add_page_break()
-
-
-def abstract_section(document):
-    document.add_heading("Abstract", level=1)
-    document.add_paragraph(
-        f"{FULL_TITLE} is a college project that models a complete, "
-        f"small-business inventory workflow across three coordinated "
-        f"deliverables built on .NET 8: a menu-driven console application "
-        f"demonstrating core object-oriented programming concepts; an "
-        f"ASP.NET Core MVC web application backed by a normalized SQL "
-        f"Server database, offering category, supplier, product and stock "
-        f"management with session-based authentication and five printable "
-        f"reports; and a Progressive Web App layer that makes the same web "
-        f"application installable, responsive on mobile, and partly usable "
-        f"offline, with low-stock notifications. A central design goal is "
-        f"correctness under everyday operational pressure -- most visibly, "
-        f"the system refuses to record a Stock Out that would push a "
-        f"product's quantity below zero, enforced both in application code "
-        f"and as a database check constraint. The system ships with "
-        f"realistic demo data (6 categories, 6 suppliers, 30 products and "
-        f"40 stock transactions) and a seeded administrator account so it "
-        f"can be evaluated immediately after a first run."
-    )
-    document.add_page_break()
-
-
-def toc_section(document):
-    document.add_heading("Table of Contents", level=1)
-    add_toc(document)
-    document.add_page_break()
-
-
-def chapter1_introduction(document):
-    document.add_heading("Chapter 1: Introduction", level=1)
-    document.add_heading("1.1 Overview", level=2)
-    document.add_paragraph(
-        f"{FULL_TITLE} addresses the everyday problem of tracking stock by "
-        f"hand -- notebooks and spreadsheets that drift out of sync with "
-        f"reality. The project delivers a working, demonstrable system "
-        f"rather than a purely theoretical design: a console application, "
-        f"a full web application, and a PWA layer on top of it, all "
-        f"sharing the same domain concepts."
-    )
-    document.add_heading("1.2 Objectives", level=2)
-    for item in [
-        "Provide CRUD management of categories, suppliers and products.",
-        "Track stock levels accurately through Stock In / Stock Out transactions.",
-        "Prevent stock from ever going negative, at both the application and database layers.",
-        "Give management a live dashboard and a set of filterable, printable reports.",
-        "Demonstrate core OOP concepts (encapsulation, inheritance, polymorphism, exceptions, collections) in a standalone console application.",
-        "Make the system usable on mobile, including partial offline access, via a Progressive Web App.",
-    ]:
-        document.add_paragraph(item, style="List Bullet")
-    document.add_heading("1.3 Scope", level=2)
-    document.add_paragraph(
-        "The system is single-tenant and single-store: it does not model "
-        "multiple warehouses, branches or currencies. Authentication is "
-        "session-based and covers a single seeded administrator account "
-        "for the web app; the console app separately demonstrates "
-        "role-based behaviour (Admin / Staff / Viewer) as an OOP exercise. "
-        "See the Future Scope section (Chapter 7) for planned extensions "
-        "beyond this scope."
-    )
-    document.add_page_break()
-
-
-def chapter2_requirements(document):
-    document.add_heading("Chapter 2: Requirements", level=1)
-    document.add_paragraph(
-        "This chapter summarizes the Software Requirements Specification "
-        "(full detail in Documentation/SRS/README.md)."
-    )
-    document.add_heading("2.1 Users", level=2)
-    for item in [
-        "Admin -- full access: manage categories, suppliers, products, stock, and view all reports. Seeded account: admin / Admin@123.",
-        "Staff -- day-to-day operator: records Stock In/Out, views reports.",
-        "Viewer (console app) -- read-only; any add/update/delete is blocked.",
-    ]:
-        document.add_paragraph(item, style="List Bullet")
-    document.add_heading("2.2 Key functional requirements", level=2)
-    fr_rows = [
-        ("FR-01", "Log in / log out with session-based authentication"),
-        ("FR-05/07/09", "Create, edit, delete, search Categories / Suppliers / Products"),
-        ("FR-06/08", "Block deleting a Category/Supplier still referenced by a Product"),
-        ("FR-12/13", "Record Stock In / Stock Out; reject a Stock Out that would go negative"),
-        ("FR-16", "Dashboard with live KPIs, low-stock list, category summary"),
-        ("FR-17", "Five filterable, print-friendly reports"),
-        ("FR-19", "PWA install, offline browsing of cached data, low-stock notifications"),
-        ("FR-20", "Demo data seeded automatically on first run"),
-    ]
-    add_docx_table(document, ["ID", "Requirement"], fr_rows)
-    document.add_heading("2.3 Non-functional requirements", level=2)
-    for item in [
-        "Security -- passwords are hashed (PBKDF2-SHA512), never stored in plain text; anti-forgery tokens on state-changing requests.",
-        "Usability -- responsive Bootstrap UI down to phone width; clear success/error messages.",
-        "Availability -- PWA offline access to previously synced product/stock data.",
-        "Data integrity -- database check constraints back up application-level validation.",
-    ]:
-        document.add_paragraph(item, style="List Bullet")
-    document.add_page_break()
-
-
-def chapter3_design(document):
-    document.add_heading("Chapter 3: Design", level=1)
-
-    document.add_heading("3.1 System Architecture", level=2)
-    document.add_paragraph(
-        "The system is built in three layered phases that share one domain "
-        "model. Phase 1, the console application, is an in-memory, "
-        "file-free implementation used to demonstrate OOP fundamentals: "
-        "classes, inheritance (Person -> Admin/Staff/User), polymorphism "
-        "(overridden DisplayInfo()), custom exceptions "
-        "(InsufficientStockException) and collections (List<T>, "
-        "Dictionary<TKey,TValue>). Phase 2, the ASP.NET Core MVC web "
-        "application, is the primary deliverable: Controllers handle "
-        "requests, Entity Framework Core 8 maps six normalized tables in "
-        "SQL Server, and Razor views render the UI. A SessionAuthFilter "
-        "enforces that every page but Login requires an active session. "
-        "Phase 3, the Progressive Web App layer, sits on top of Phase 2 "
-        "without a separate backend: a Web App Manifest and Service Worker "
-        "make the same web app installable and partly usable offline, "
-        "backed by a small JSON API (Controllers/Api/InventoryApiController.cs)."
-    )
-
-    document.add_heading("3.2 Data Dictionary", level=2)
-    document.add_paragraph(
-        "Six tables, normalized to Third Normal Form (3NF) -- see "
-        "Database/ERDiagram/README.md for the full normalization "
-        "rationale."
-    )
-    for table_name, cols in DATA_DICTIONARY.items():
-        document.add_heading(table_name, level=3)
-        add_docx_table(document, ["Column", "Type", "Constraint"], cols)
-
-    document.add_heading("3.3 Entity-Relationship Diagram", level=2)
-    erd_path = ROOT / "Database" / "ERDiagram" / "ERDiagram.png"
-    if erd_path.exists():
-        document.add_picture(str(erd_path), width=DocxInches(6.2))
-    document.add_paragraph(
-        "Category -> Product and Supplier -> Product are one-to-many with "
-        "ON DELETE RESTRICT (a master record in use cannot be deleted). "
-        "Product -> Stock is one-to-one (optional) and Product -> "
-        "StockTransaction is one-to-many, both with ON DELETE CASCADE "
-        "(dependent data is removed with its product). Users has no "
-        "foreign key relationship to the inventory tables."
-    )
-
-    document.add_heading("3.4 Web Application Routes", level=2)
-    add_docx_table(document, ["Controller", "Route", "Purpose"], ROUTES)
-
-    document.add_page_break()
-
-
-def chapter4_implementation(document):
-    document.add_heading("Chapter 4: Implementation", level=1)
-
-    document.add_heading("4.1 Console Application", level=2)
-    document.add_paragraph(
-        "A menu-driven .NET 8 console app (ConsoleApplication/Program.cs) "
-        "covering Product Management, Stock Management, Reports and "
-        "Viewing Users. Domain objects (Product, Category, Supplier, "
-        "Stock, StockTransaction) use private fields with validating "
-        "properties -- encapsulation. Person is an abstract base class "
-        "with Admin, Staff and User derived classes overriding the virtual "
-        "DisplayInfo() method -- inheritance and polymorphism. "
-        "MasterDataService and UserService use Dictionary<TKey,TValue> for "
-        "fast name/username lookup; ProductService and StockService use "
-        "List<T>. StockService throws a custom InsufficientStockException "
-        "on an invalid Stock Out, caught explicitly in Program.cs. Input "
-        "reading goes through InputHelper.ReadLine(), which exits cleanly "
-        "on EOF instead of looping forever."
-    )
-
-    document.add_heading("4.2 ASP.NET Core MVC Web Application", level=2)
-    document.add_paragraph(
-        "Controllers (Account, Home, Category, Product, Supplier, Stock, "
-        "Dashboard, Report, Pwa, Api/InventoryApi) sit over an Entity "
-        "Framework Core DbContext (ApplicationDbContext) mapping the six "
-        "tables described in Chapter 3. DbInitializer creates the "
-        "database on first run, seeds the admin account with a hashed "
-        "password, and loads demo data from Database/SQLScripts/SeedData.sql. "
-        "A SessionAuthFilter action filter enforces login on every "
-        "controller action except those marked [AllowAnonymous], "
-        "returning a redirect for page requests and a 401 JSON response "
-        "for API requests under /api. State-changing POST actions require "
-        "anti-forgery tokens. StockController.StockIn/StockOut validate "
-        "the requested quantity in code before saving, and the database "
-        "check constraints (CK_Stocks_QuantityAvailable, "
-        "CK_StockTransactions_Quantity, CK_StockTransactions_Type, "
-        "CK_Products_Price) enforce the same rules as a backstop."
-    )
-
-    document.add_heading("4.3 Progressive Web App", level=2)
-    document.add_paragraph(
-        "manifest.json declares the installable app identity (name, "
-        "icons, theme colour #1E293B, start URL /Pwa). sw.js implements "
-        "three caching strategies across three named caches: network-first "
-        "for /api/* JSON calls and for page navigations (each falling "
-        "back to a cached copy, and further to offline.html for pages), "
-        "and stale-while-revalidate for static assets. pwa.js registers "
-        "the service worker, manages the install prompt, the offline "
-        "banner and low-stock notification scheduling; pwa-pages.js "
-        "renders the Search / Stock / Low Stock pages from JSON returned "
-        "by InventoryApiController, working from cached data when "
-        "offline. Full detail is in PWA/README.md."
-    )
-    document.add_page_break()
-
-
-def chapter5_testing(document, test_rows, is_real):
-    document.add_heading("Chapter 5: Testing", level=1)
-    if not is_real:
-        p = document.add_paragraph()
-        r = p.add_run("Test results pending — run build_docs.py after testing")
-        r.font.bold = True
-        r.font.color.rgb = DocxColor(*hx(WARN_HEX))
-        document.add_paragraph(
-            "tools/test_results.json has not been produced yet by the test "
-            "run. The table below lists the planned test cases with every "
-            "status shown as \"Pending\" -- no result is claimed until the "
-            "real test run writes tools/test_results.json and this report "
-            "is regenerated."
-        )
-    else:
-        document.add_paragraph(
-            "Results below are taken directly from tools/test_results.json, "
-            "produced by the project's test run."
-        )
-    rows = [(r["id"], r["area"], r["test"], r["expected"], r["actual"], r["status"]) for r in test_rows]
-    add_docx_table(document, ["ID", "Area", "Test", "Expected", "Actual", "Status"], rows)
-    document.add_page_break()
-
-
-def chapter6_setup(document):
-    document.add_heading("Chapter 6: Setup", level=1)
-    document.add_paragraph(
-        "Full click-by-click instructions are in "
-        "Documentation/UserManual/UserManual.md (also available as "
-        "UserManual.docx). Summary for a Windows/Visual Studio 2022 "
-        "examiner machine:"
-    )
-    for item in [
-        "Install Visual Studio 2022 Community with the \"ASP.NET and web development\" workload and the .NET 8.0 Runtime.",
-        "Open InventoryManagementSystem.sln.",
-        "Press F5 -- the database and demo data are created automatically on first run (LocalDB).",
-        "Log in with admin / Admin@123.",
-        "Optionally run the console app (right-click ConsoleApplication -> Set as Startup Project -> Ctrl+F5).",
-    ]:
-        document.add_paragraph(item, style="List Number")
-    document.add_page_break()
-
-
-def chapter7_conclusion(document):
-    document.add_heading("Chapter 7: Conclusion & Future Scope", level=1)
-    document.add_heading("7.1 Conclusion", level=2)
-    document.add_paragraph(
-        f"{FULL_TITLE} meets its stated objectives: a normalized, "
-        f"constraint-backed database; a full-featured web application "
-        f"with authentication, CRUD, stock control and reporting; a "
-        f"console application demonstrating core OOP concepts; and a PWA "
-        f"layer that makes the system installable and partly usable "
-        f"offline. The negative-stock guard -- checked in application "
-        f"code and enforced again by a database CHECK constraint -- "
-        f"exemplifies the project's approach of defending correctness at "
-        f"more than one layer."
-    )
-    document.add_heading("7.2 Future Scope", level=2)
-    for item in [
-        "Role-based access control in the web app (Admin/Staff/Viewer), mirroring the console app's role model.",
-        "Barcode/QR scanning for faster Stock In/Out from a mobile device.",
-        "Multi-branch/multi-warehouse support.",
-        "Purchase-order workflow tied directly to Low Stock alerts.",
-        "Automated test suite and CI pipeline.",
-    ]:
-        document.add_paragraph(item, style="List Bullet")
-    p = document.add_paragraph()
-    r = p.add_run(
-        "Note: .NET 8 is a Long-Term Support (LTS) release; its official "
-        "Microsoft support window ends November 2026. This is fine for "
-        "the current submission, but any future maintenance of this "
-        "project should plan a migration to the next LTS release before "
-        "that date."
-    )
-    r.italic = True
-    document.add_page_break()
-
-
-def references_section(document):
-    document.add_heading("References", level=1)
-    for item in [
-        BASE_REPO_CREDIT + f" -- {BASE_REPO_URL}",
-        "Microsoft Learn -- ASP.NET Core documentation (learn.microsoft.com/aspnet/core)",
-        "Microsoft Learn -- Entity Framework Core documentation (learn.microsoft.com/ef/core)",
-        "Microsoft Learn -- ASP.NET Core Identity password hashing (PasswordHasher)",
-        "MDN Web Docs -- Progressive Web Apps, Service Worker API, Web App Manifest",
-        "Bootstrap 5.3 documentation (getbootstrap.com)",
-        "Microsoft -- .NET support policy (dotnet.microsoft.com/platform/support-policy)",
-    ]:
-        document.add_paragraph(item, style="List Bullet")
-    document.add_page_break()
-
-
-def appendix_mapping(document):
-    document.add_heading("Appendix A: Syllabus Requirement Mapping", level=1)
-    document.add_paragraph(
-        "Maps each graded syllabus requirement to the file(s) that "
-        "implement it."
-    )
-    add_docx_table(document, ["Requirement", "File(s)"], SYLLABUS_MAPPING)
-
-
-def build_final_report():
-    test_rows, is_real = load_test_results()
-
-    document = Document()
-    style_document(document)
-
-    title_page(document)
-    certificate_page(document)
-    acknowledgement_page(document)
-    abstract_section(document)
-    toc_section(document)
-    chapter1_introduction(document)
-    chapter2_requirements(document)
-    chapter3_design(document)
-    chapter4_implementation(document)
-    chapter5_testing(document, test_rows, is_real)
-    chapter6_setup(document)
-    chapter7_conclusion(document)
-    references_section(document)
-    appendix_mapping(document)
-
-    out_path = ROOT / "Documentation" / "FinalReport" / "InventoryManagementSystem_FinalReport.docx"
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    document.save(out_path)
-    print(f"wrote {out_path}")
-    return out_path
-
-
-# ===========================================================================
-# 4. UserManual.md -> UserManual.docx (small markdown converter)
-# ===========================================================================
 
 INLINE_RE = re.compile(r"(\*\*.+?\*\*|`[^`]+?`)")
 
@@ -1539,13 +859,29 @@ def build_user_manual_docx():
 # ===========================================================================
 
 def main():
-    print("1/4 Drawing ER diagram...")
+    print("1/5 Generating diagrams and charts...")
+    import diagrams
+    diagrams.generate_all()
+
+    print("2/5 Drawing ER diagram...")
     draw_erd_diagram()
-    print("2/4 Building presentation...")
-    build_pptx()
-    print("3/4 Building final report...")
-    build_final_report()
-    print("4/4 Converting user manual...")
+
+    print("3/5 Building presentation...")
+    try:
+        import ppt_builder
+    except ImportError:
+        ppt_builder = None
+    if ppt_builder is not None:
+        ppt_builder.build_pptx()
+    else:
+        print("  tools/ppt_builder.py not found; falling back to build_docs.build_pptx()")
+        build_pptx()
+
+    print("4/5 Building final report...")
+    import report_builder
+    report_builder.build_final_report()
+
+    print("5/5 Converting user manual...")
     build_user_manual_docx()
     print("Done.")
 

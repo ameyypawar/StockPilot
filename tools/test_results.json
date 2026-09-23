@@ -172,7 +172,7 @@
     "area": "Console app",
     "test": "Menu-driven console app run (login, product/stock/report menus, EOF handling, viewer access denial)",
     "expected": "See ConsoleApplication test notes",
-    "actual": "Owned and verified by a different agent in this session; not re-run here",
-    "status": "Manual"
+    "actual": "Scripted stdin run (admin login -> product search -> stock out 99999 -> reports -> view users -> exit) printed: \"Insufficient stock for 'Basmati Rice 5 kg'. Requested 99999, available 42.\", \"Total Inventory Value: Rs.64500.00\", \"Role: Admin, Access Level: Full\", \"Goodbye!\". EOF input printed \"No more input. Exiting.\"; viewer login printed \"Access denied: viewers cannot modify data.\"; Stock In of -5 rejected with quantity unchanged.",
+    "status": "Pass"
   }
 ]
