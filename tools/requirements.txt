@@ -1,3 +1,6 @@
 python-pptx>=0.6.23
 python-docx>=1.1
 Pillow>=10
+matplotlib>=3.8
+# optional: only needed to re-capture app screenshots (tools/capture_screens.py)
+playwright>=1.40
