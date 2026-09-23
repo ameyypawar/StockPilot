@@ -1,0 +1,52 @@
+@model List<InventoryManagement.Web.Models.Stock>
+
+@{
+    ViewData["Title"] = "Stock Summary Report";
+    var totalUnits = Model.Sum(s => s.QuantityAvailable);
+}
+
+<h2 class="no-print">Stock Summary Report</h2>
+
+<form method="get" asp-action="StockSummary" class="filter-bar no-print">
+    <select name="categoryId" class="form-select">
+        <option value="">All Categories</option>
+        @foreach (var cat in (List<InventoryManagement.Web.Models.Category>)ViewBag.Categories)
+        {
+            <option value="@cat.CategoryId" selected="@(ViewBag.CategoryId != null && (int)ViewBag.CategoryId == cat.CategoryId)">@cat.CategoryName</option>
+        }
+    </select>
+    <select name="status" class="form-select">
+        <option value="">All Statuses</option>
+        <option value="OK" selected="@(ViewBag.Status == "OK")">OK</option>
+        <option value="Low" selected="@(ViewBag.Status == "Low")">Low</option>
+        <option value="Out" selected="@(ViewBag.Status == "Out")">Out</option>
+    </select>
+    <button type="submit" class="btn btn-secondary">Filter</button>
+</form>
+
+<button onclick="window.print()" class="print-btn no-print">Print Report</button>
+
+<partial name="_ReportHeader" model="@("Stock Summary Report")" />
+
+<div class="table-wrap">
+<table>
+    <tr><th>Product</th><th>Available</th><th>Reorder Level</th><th>Status</th></tr>
+    @foreach (var s in Model)
+    {
+        var status = InventoryManagement.Web.Models.StockStatus.For(s.QuantityAvailable, s.ReorderLevel);
+        <tr>
+            <td>@s.Product?.ProductName</td>
+            <td>@s.QuantityAvailable</td>
+            <td>@s.ReorderLevel</td>
+            <td><span class="badge @InventoryManagement.Web.Models.StockStatus.BadgeCss(status)">@status</span></td>
+        </tr>
+    }
+    <tr>
+        <td colspan="1"><strong>Total Units</strong></td>
+        <td><strong>@totalUnits</strong></td>
+        <td colspan="2"></td>
+    </tr>
+</table>
+</div>
+
+<p class="no-print"><a asp-action="Index">Back to Reports</a></p>

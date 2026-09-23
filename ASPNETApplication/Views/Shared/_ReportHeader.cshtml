@@ -1,0 +1,11 @@
+@model string
+
+<div class="d-none d-print-block report-header">
+    <h2>StockPilot — Inventory Management System</h2>
+    <h3>@Model</h3>
+    <p>Generated: @DateTime.Now.ToString("f")</p>
+    @if (ViewBag.FilterSummary != null)
+    {
+        <p>Filters: @ViewBag.FilterSummary</p>
+    }
+</div>

@@ -1,0 +1,55 @@
+@model List<InventoryManagement.Web.Models.Stock>
+
+@{
+    ViewData["Title"] = "Stock Overview";
+}
+
+<h2>Stock Overview</h2>
+
+<p>
+    <a asp-action="Initialize" class="btn btn-secondary">+ Initialize Stock for Product</a>
+    <a asp-action="StockIn" class="btn btn-primary">Stock In</a>
+    <a asp-action="StockOut" class="btn btn-primary">Stock Out</a>
+    <a asp-action="Transactions">Transaction History</a>
+</p>
+
+<form method="get" asp-action="Index" class="filter-bar">
+    <input type="text" name="searchTerm" value="@ViewBag.SearchTerm" class="form-control" placeholder="Search by product name..." />
+    <select name="status" class="form-select">
+        <option value="">All Statuses</option>
+        <option value="OK" selected="@(ViewBag.Status == "OK")">OK</option>
+        <option value="Low" selected="@(ViewBag.Status == "Low")">Low</option>
+        <option value="Out" selected="@(ViewBag.Status == "Out")">Out</option>
+    </select>
+    <button type="submit" class="btn btn-secondary">Search</button>
+</form>
+
+<div class="table-wrap">
+<table>
+    <tr>
+        <th>Product</th>
+        <th>Category</th>
+        <th>Available Quantity</th>
+        <th>Reorder Level</th>
+        <th>Status</th>
+        <th>Last Updated</th>
+        <th>Quick Actions</th>
+    </tr>
+    @foreach (var stock in Model)
+    {
+        var status = InventoryManagement.Web.Models.StockStatus.For(stock.QuantityAvailable, stock.ReorderLevel);
+        <tr>
+            <td>@stock.Product?.ProductName</td>
+            <td>@stock.Product?.Category?.CategoryName</td>
+            <td>@stock.QuantityAvailable</td>
+            <td>@stock.ReorderLevel</td>
+            <td><span class="badge @InventoryManagement.Web.Models.StockStatus.BadgeCss(status)">@status</span></td>
+            <td>@stock.LastUpdated.ToString("g")</td>
+            <td>
+                <a asp-action="StockIn" asp-route-productId="@stock.ProductId">In</a> |
+                <a asp-action="StockOut" asp-route-productId="@stock.ProductId">Out</a>
+            </td>
+        </tr>
+    }
+</table>
+</div>

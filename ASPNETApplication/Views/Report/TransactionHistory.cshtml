@@ -1,0 +1,48 @@
+@model List<InventoryManagement.Web.Models.StockTransaction>
+
+@{
+    ViewData["Title"] = "Transaction History Report";
+    var totalIn = Model.Where(t => t.Type == InventoryManagement.Web.Models.TransactionType.StockIn).Sum(t => t.Quantity);
+    var totalOut = Model.Where(t => t.Type == InventoryManagement.Web.Models.TransactionType.StockOut).Sum(t => t.Quantity);
+}
+
+<h2 class="no-print">Transaction History Report</h2>
+
+<form method="get" asp-action="TransactionHistory" class="filter-bar no-print">
+    <input type="text" name="searchTerm" value="@ViewBag.SearchTerm" class="form-control" placeholder="Search by product..." />
+    <select name="type" class="form-select">
+        <option value="">All Types</option>
+        <option value="StockIn" selected="@(ViewBag.SelectedType == "StockIn")">Stock In</option>
+        <option value="StockOut" selected="@(ViewBag.SelectedType == "StockOut")">Stock Out</option>
+    </select>
+    <input type="date" name="from" value="@(ViewBag.From != null ? ((DateTime)ViewBag.From).ToString("yyyy-MM-dd") : "")" class="form-control" />
+    <input type="date" name="to" value="@(ViewBag.To != null ? ((DateTime)ViewBag.To).ToString("yyyy-MM-dd") : "")" class="form-control" />
+    <button type="submit" class="btn btn-secondary">Filter</button>
+</form>
+
+<button onclick="window.print()" class="print-btn no-print">Print Report</button>
+
+<partial name="_ReportHeader" model="@("Transaction History Report")" />
+
+<div class="table-wrap">
+<table>
+    <tr><th>Date</th><th>Product</th><th>Type</th><th>Quantity</th><th>By</th><th>Remarks</th></tr>
+    @foreach (var t in Model)
+    {
+        <tr>
+            <td>@t.TransactionDate.ToString("g")</td>
+            <td>@t.Product?.ProductName</td>
+            <td>@t.Type</td>
+            <td>@t.Quantity</td>
+            <td>@t.PerformedBy</td>
+            <td>@t.Remarks</td>
+        </tr>
+    }
+    <tr>
+        <td colspan="3"><strong>Totals</strong></td>
+        <td colspan="3"><strong>In: @totalIn &nbsp; Out: @totalOut</strong></td>
+    </tr>
+</table>
+</div>
+
+<p class="no-print"><a asp-action="Index">Back to Reports</a></p>

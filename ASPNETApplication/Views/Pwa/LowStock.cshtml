@@ -1,0 +1,20 @@
+@{
+    ViewData["Title"] = "Low Stock Alerts";
+}
+
+<div data-page="low">
+    <h2>Low Stock Alerts</h2>
+
+    <div class="d-grid gap-2 d-sm-flex mb-3">
+        <button type="button" class="btn btn-lg btn-outline-primary" data-role="enable-alerts-btn">Enable alerts</button>
+        <button type="button" id="notifyNowBtn" class="btn btn-lg btn-outline-secondary">Notify me now</button>
+    </div>
+
+    <div id="dataStatus" class="text-muted small mb-3"></div>
+
+    <div id="results"></div>
+</div>
+
+@section Scripts {
+    <script src="~/js/pwa-pages.js" asp-append-version="true"></script>
+}

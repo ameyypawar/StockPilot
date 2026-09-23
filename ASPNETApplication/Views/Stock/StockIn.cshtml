@@ -1,0 +1,45 @@
+@{
+    ViewData["Title"] = "Stock In";
+    var username = Context.Session.GetString("Username");
+}
+
+<h2>Stock In</h2>
+
+@if (ViewBag.Error != null)
+{
+    <div class="alert alert-danger">@ViewBag.Error</div>
+}
+
+<form method="post" asp-action="StockIn">
+    <div class="mb-3">
+        <label class="form-label">Product</label>
+        <select name="productId" class="form-select">
+            @foreach (var s in (List<InventoryManagement.Web.Models.Stock>)ViewBag.Stocks)
+            {
+                if (ViewBag.SelectedProductId != null && (int)ViewBag.SelectedProductId == s.ProductId)
+                {
+                    <option value="@s.ProductId" selected>@s.Product.ProductName (Available: @s.QuantityAvailable)</option>
+                }
+                else
+                {
+                    <option value="@s.ProductId">@s.Product.ProductName (Available: @s.QuantityAvailable)</option>
+                }
+            }
+        </select>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Quantity to Add</label>
+        <input type="number" min="1" name="quantity" class="form-control" required />
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Remarks</label>
+        <input type="text" name="remarks" class="form-control" placeholder="e.g. Purchase - Supplier X" />
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Performed By (Staff Name)</label>
+        <input type="text" name="performedBy" class="form-control" value="@username" required />
+    </div>
+    <button type="submit" class="btn btn-primary">Stock In</button>
+</form>
+
+<p><a asp-action="Index">Back to Stock Overview</a></p>

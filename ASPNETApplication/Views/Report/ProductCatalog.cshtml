@@ -1,0 +1,54 @@
+@model List<InventoryManagement.Web.Models.Product>
+
+@{
+    ViewData["Title"] = "Product Catalog Report";
+}
+
+<h2 class="no-print">Product Catalog Report</h2>
+
+<form method="get" asp-action="ProductCatalog" class="filter-bar no-print">
+    <input type="text" name="searchTerm" value="@ViewBag.SearchTerm" class="form-control" placeholder="Search by name..." />
+    <select name="categoryId" class="form-select">
+        <option value="">All Categories</option>
+        @foreach (var cat in (List<InventoryManagement.Web.Models.Category>)ViewBag.Categories)
+        {
+            <option value="@cat.CategoryId" selected="@(ViewBag.CategoryId != null && (int)ViewBag.CategoryId == cat.CategoryId)">@cat.CategoryName</option>
+        }
+    </select>
+    <select name="supplierId" class="form-select">
+        <option value="">All Suppliers</option>
+        @foreach (var sup in (List<InventoryManagement.Web.Models.Supplier>)ViewBag.Suppliers)
+        {
+            <option value="@sup.SupplierId" selected="@(ViewBag.SupplierId != null && (int)ViewBag.SupplierId == sup.SupplierId)">@sup.SupplierName</option>
+        }
+    </select>
+    <button type="submit" class="btn btn-secondary">Search</button>
+</form>
+
+<button onclick="window.print()" class="print-btn no-print">Print Report</button>
+
+<partial name="_ReportHeader" model="@("Product Catalog Report")" />
+
+<div class="table-wrap">
+<table>
+    <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Price</th>
+        <th>Category</th>
+        <th>Supplier</th>
+    </tr>
+    @foreach (var p in Model)
+    {
+        <tr>
+            <td>@p.ProductId</td>
+            <td>@p.ProductName</td>
+            <td>Rs. @p.Price.ToString("F2")</td>
+            <td>@p.Category?.CategoryName</td>
+            <td>@p.Supplier?.SupplierName</td>
+        </tr>
+    }
+</table>
+</div>
+
+<p class="no-print"><a asp-action="Index">Back to Reports</a></p>

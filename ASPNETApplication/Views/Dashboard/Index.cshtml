@@ -1,0 +1,116 @@
+@using InventoryManagement.Web.ViewModels
+@{
+    ViewData["Title"] = "Dashboard";
+    var lowStockItems = (List<InventoryManagement.Web.Models.Stock>)ViewBag.LowStockItems;
+    var categorySummary = (List<CategorySummaryRow>)ViewBag.CategorySummary;
+    var maxCategoryValue = categorySummary.Count > 0 ? categorySummary.Max(c => c.Value) : 0;
+}
+
+<h2>Welcome, @ViewBag.Username (@ViewBag.Role)</h2>
+
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <div class="kpi-label">Total Products</div>
+        <div class="kpi-value">@ViewBag.TotalProducts</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Total Suppliers</div>
+        <div class="kpi-value">@ViewBag.TotalSuppliers</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Categories</div>
+        <div class="kpi-value">@ViewBag.TotalCategories</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Total Units</div>
+        <div class="kpi-value">@ViewBag.TotalUnits</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Low Stock Items</div>
+        <div class="kpi-value" style="color:@(((int)ViewBag.LowStockCount) > 0 ? "#DC2626" : "#0F172A")">@ViewBag.LowStockCount</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Out of Stock</div>
+        <div class="kpi-value" style="color:@(((int)ViewBag.OutOfStockCount) > 0 ? "#DC2626" : "#0F172A")">@ViewBag.OutOfStockCount</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Today's Stock In</div>
+        <div class="kpi-value">@ViewBag.TodayIn</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Today's Stock Out</div>
+        <div class="kpi-value">@ViewBag.TodayOut</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Inventory Value</div>
+        <div class="kpi-value">Rs. @(((decimal)ViewBag.TotalInventoryValue).ToString("F2"))</div>
+    </div>
+</div>
+
+<h3>Low Stock Items</h3>
+<div class="table-wrap">
+<table>
+    <tr><th>Product</th><th>Available</th><th>Reorder Level</th><th></th></tr>
+    @if (lowStockItems.Count == 0)
+    {
+        <tr><td colspan="4">No low stock items.</td></tr>
+    }
+    else
+    {
+        foreach (var s in lowStockItems)
+        {
+            <tr>
+                <td>@s.Product?.ProductName</td>
+                <td>@s.QuantityAvailable</td>
+                <td>@s.ReorderLevel</td>
+                <td><a asp-controller="Stock" asp-action="StockIn" asp-route-productId="@s.ProductId">Stock In</a></td>
+            </tr>
+        }
+    }
+</table>
+</div>
+
+<h3>Category Summary</h3>
+<div class="table-wrap">
+<table>
+    <tr><th>Category</th><th>Products</th><th>Units</th><th>Value</th></tr>
+    @foreach (var c in categorySummary)
+    {
+        var widthPct = maxCategoryValue > 0 ? (double)(c.Value / maxCategoryValue) * 100 : 0;
+        <tr>
+            <td>@c.CategoryName</td>
+            <td>@c.ProductCount</td>
+            <td>@c.Units</td>
+            <td>
+                Rs. @c.Value.ToString("F2")
+                <div style="background:#E2E8F0;border-radius:4px;height:6px;margin-top:4px;">
+                    <div style="background:#0D9488;border-radius:4px;height:6px;width:@(widthPct.ToString("F0"))%;"></div>
+                </div>
+            </td>
+        </tr>
+    }
+</table>
+</div>
+
+<h3>Recent Transactions</h3>
+<div class="table-wrap">
+<table>
+    <tr>
+        <th>Date</th>
+        <th>Product</th>
+        <th>Type</th>
+        <th>Quantity</th>
+        <th>By</th>
+    </tr>
+    @foreach (var t in ViewBag.RecentTransactions)
+    {
+        <tr>
+            <td>@t.TransactionDate.ToString("g")</td>
+            <td>@t.Product?.ProductName</td>
+            <td>@t.Type</td>
+            <td>@t.Quantity</td>
+            <td>@t.PerformedBy</td>
+        </tr>
+    }
+</table>
+</div>

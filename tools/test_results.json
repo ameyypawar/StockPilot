@@ -1,0 +1,178 @@
+[
+  {
+    "id": "TC-01",
+    "area": "Build",
+    "test": "dotnet build InventoryManagementSystem.sln after retargeting both projects to net8.0",
+    "expected": "0 errors",
+    "actual": "Build succeeded. 0 Error(s) (36 pre-existing nullable-reference warnings in ConsoleApplication, unrelated to the retarget)",
+    "status": "Pass"
+  },
+  {
+    "id": "TC-02",
+    "area": "Database seeding",
+    "test": "Start the web app against Docker SQL Server on first run (empty database)",
+    "expected": "DbInitializer creates schema, seeds admin user and demo data with exact row counts 6/6/30/30/40/1",
+    "actual": "Log: 'Row counts - Categories: 6, Suppliers: 6, Products: 30, Stocks: 30, StockTransactions: 40, Users: 1'; app reached 'Now listening on: http://localhost:5080' with no errors",
+    "status": "Pass"
+  },
+  {
+    "id": "TC-03",
+    "area": "Auth",
+    "test": "GET /Product without a session",
+    "expected": "302 redirect to /Account/Login with returnUrl",
+    "actual": "HTTP 302, redirect_url=http://localhost:5080/Account/Login?returnUrl=%2FProduct",
+    "status": "Pass"
+  },
+  {
+    "id": "TC-04",
+    "area": "Auth",
+    "test": "POST /Account/Login with admin/Admin@123 and a valid antiforgery token",
+    "expected": "302 redirect to /Dashboard",
+    "actual": "HTTP 302, redirect_url=http://localhost:5080/Dashboard",
+    "status": "Pass"
+  },
+  {
+    "id": "TC-05",
+    "area": "Dashboard",
+    "test": "GET /Dashboard with an authenticated session",
+    "expected": "200, page contains 'Inventory Value'",
+    "actual": "HTTP 200; grep confirmed the text 'Inventory Value' present",
+    "status": "Pass"
+  },
+  {
+    "id": "TC-06",
+    "area": "Page sweep",
+    "test": "Authenticated GET across Category, Product, Supplier, Stock and all 5 Report routes with filter query strings (/Category, /Product?categoryId=1, /Supplier, /Stock?status=Low, /Stock/StockIn?productId=2, /Report/ProductCatalog?supplierId=2, /Report/StockSummary?status=Out, /Report/LowStock, /Report/TransactionHistory?type=StockOut, /Report/InventoryValue?categoryId=3)",
+    "expected": "All 10 routes return 200, no errors/exceptions/'could not be translated' lines in the app log",
+    "actual": "All 10 returned 200; grep -c for error|exception|could not be translated over the app log during the sweep returned 0",
+    "status": "Pass"
+  },
+  {
+    "id": "TC-07",
+    "area": "Stock Out validation",
+    "test": "POST /Stock/StockOut with quantity=99999 on a product with 42 in stock",
+    "expected": "Rejected with 'Insufficient stock. Available: {n}', stock quantity unchanged",
+    "actual": "Response contained 'Insufficient stock. Available: 42'; sqlcmd confirmed dbo.Stocks.QuantityAvailable for that product was still 42 after the attempt",
+    "status": "Pass"
+  },
+  {
+    "id": "TC-08",
+    "area": "Stock In validation",
+    "test": "POST /Stock/StockIn with quantity=-5",
+    "expected": "Rejected with a 'must be greater than zero' message",
+    "actual": "Response contained 'Quantity must be greater than zero.'",
+    "status": "Pass"
+  },
+  {
+    "id": "TC-09",
+    "area": "Category delete guard",
+    "test": "POST /Category/Delete/1 for a category with products assigned to it",
+    "expected": "Delete blocked, category not removed",
+    "actual": "HTTP 302 redirect back to /Category (TempData error set in DeleteConfirmed); sqlcmd confirmed COUNT(*) FROM dbo.Categories WHERE CategoryId=1 was still 1 after the attempt. (The TempData banner itself isn't visible yet in this reduced-scope pass since _Alerts.cshtml/_Layout.cshtml were written but not re-verified visually after the PWA integration.)",
+    "status": "Pass"
+  },
+  {
+    "id": "TC-10",
+    "area": "Change password",
+    "test": "POST /Account/ChangePassword with an incorrect current password",
+    "expected": "Rejected with 'Current password is incorrect.'",
+    "actual": "Response contained 'Current password is incorrect.'",
+    "status": "Pass"
+  },
+  {
+    "id": "TC-11",
+    "area": "Change password",
+    "test": "Full round trip: change admin's password to NewPass456, log in with it, change it back to Admin@123, log in with the original again",
+    "expected": "Both changes succeed, both logins succeed (302 to /Dashboard)",
+    "actual": "'Password changed successfully.' on both changes; login with NewPass456 -> 302 /Dashboard; login with Admin@123 afterward -> 302 /Dashboard",
+    "status": "Pass"
+  },
+  {
+    "id": "TC-12",
+    "area": "PWA static assets",
+    "test": "GET /manifest.json and /sw.js",
+    "expected": "200, correct content types, Cache-Control: no-cache",
+    "actual": "manifest.json: 200, Content-Type: application/json, Cache-Control: no-cache. sw.js: 200, Content-Type: text/javascript, Cache-Control: no-cache",
+    "status": "Pass"
+  },
+  {
+    "id": "TC-13",
+    "area": "PWA API auth",
+    "test": "GET /api/products without a session",
+    "expected": "401 (JSON error body from SessionAuthFilter, not a redirect)",
+    "actual": "HTTP 401",
+    "status": "Pass"
+  },
+  {
+    "id": "TC-14",
+    "area": "PWA API data",
+    "test": "Authenticated GET /api/stock/low",
+    "expected": "200, JSON, count = 8 (the 8 seeded low/out-of-stock products)",
+    "actual": "HTTP 200; parsed JSON: count=8, items array length=8",
+    "status": "Pass"
+  },
+  {
+    "id": "TC-15",
+    "area": "Build (PWA integration)",
+    "test": "dotnet build after the PWA agent's files (PwaController, InventoryApiController, DTOs, Views/Pwa/*) landed on disk",
+    "expected": "0 errors, no fixes needed",
+    "actual": "Build succeeded, 0 errors, no changes needed to the PWA agent's files",
+    "status": "Pass"
+  },
+  {
+    "id": "TC-16",
+    "area": "SQL scripts",
+    "test": "dotnet ef dbcontext script --project ASPNETApplication, wrapped into CreateTables.sql with existence guards",
+    "expected": "Table/constraint/index names match ApplicationDbContext.OnModelCreating exactly (CK_Products_Price, CK_Stocks_QuantityAvailable, CK_Stocks_ReorderLevel, CK_StockTransactions_Quantity, CK_StockTransactions_Type, IX_Categories_CategoryName unique, IX_Users_Username unique, IX_Stocks_ProductId unique, etc.)",
+    "actual": "Generated script matched all expected constraint and index names verbatim",
+    "status": "Pass"
+  },
+  {
+    "id": "TC-17",
+    "area": "SQL scripts",
+    "test": "Run ResetDatabase.sql, then CreateTables.sql, then SeedData.sql via sqlcmd against Docker SQL Server (script path, not the app)",
+    "expected": "All three run without error; row counts 6 Categories / 6 Suppliers / 1 User / 30 Products / 30 Stocks / 40 StockTransactions",
+    "actual": "sqlcmd output: '(6 rows affected)' x2, '(1 row affected)', '(30 rows affected)' x2, '(40 rows affected)'; separately queried COUNT(*) on all six tables and got exactly 6/6/1/30/30/40",
+    "status": "Pass"
+  },
+  {
+    "id": "TC-18",
+    "area": "SQL scripts",
+    "test": "Log in as admin/Admin@123 against the database built purely from the SQL scripts (proves the precomputed PasswordHasher hash in SeedData.sql is valid)",
+    "expected": "302 to /Dashboard, then /Dashboard returns 200",
+    "actual": "HTTP 302 redirect to /Dashboard; /Dashboard returned 200",
+    "status": "Pass"
+  },
+  {
+    "id": "TC-19",
+    "area": "SQL scripts",
+    "test": "EnsureCreated() fallback on a database containing only __EFMigrationsHistory",
+    "expected": "DbInitializer's CreateTables() fallback creates the real tables",
+    "actual": "Not run in this pass (explicitly descoped to finish faster)",
+    "status": "Manual"
+  },
+  {
+    "id": "TC-20",
+    "area": "SQL scripts",
+    "test": "Full schema diff between script-built DB and app-built DB (INFORMATION_SCHEMA.COLUMNS, sys.foreign_keys, sys.indexes, sys.check_constraints)",
+    "expected": "Empty diff",
+    "actual": "Not run in this pass (explicitly descoped); constraint/index names were instead spot-checked by comparing the generated CreateTables.sql against ApplicationDbContext.OnModelCreating (TC-16)",
+    "status": "Manual"
+  },
+  {
+    "id": "TC-21",
+    "area": "PWA (browser-only)",
+    "test": "Install prompt / Add to Home Screen, offline reload of /Pwa/Search, push-style low-stock notification",
+    "expected": "Install banner appears on a secure/localhost origin; page still loads with cached data when offline; notification fires when alerts are enabled and a low-stock item exists",
+    "actual": "Not tested — requires a real browser/phone (DevTools Application tab, or a phone on the LAN/MacDockerLAN profile). Server-side prerequisites (manifest, service worker, API endpoints) were verified via curl (TC-12 through TC-14) but the client-side PWA behaviour itself was not exercised in this session.",
+    "status": "Manual"
+  },
+  {
+    "id": "TC-22",
+    "area": "Console app",
+    "test": "Menu-driven console app run (login, product/stock/report menus, EOF handling, viewer access denial)",
+    "expected": "See ConsoleApplication test notes",
+    "actual": "Owned and verified by a different agent in this session; not re-run here",
+    "status": "Manual"
+  }
+]

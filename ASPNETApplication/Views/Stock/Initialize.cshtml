@@ -1,0 +1,41 @@
+@{
+    ViewData["Title"] = "Initialize Stock";
+    var products = (List<InventoryManagement.Web.Models.Product>)ViewBag.Products;
+}
+
+<h2>Initialize Stock for a Product</h2>
+
+@if (ViewBag.Error != null)
+{
+    <div class="alert alert-danger">@ViewBag.Error</div>
+}
+
+@if (products.Count == 0)
+{
+    <p>Every product already has a stock record.</p>
+}
+else
+{
+    <form method="post" asp-action="Initialize">
+        <div class="mb-3">
+            <label class="form-label">Product</label>
+            <select name="productId" class="form-select">
+                @foreach (var p in products)
+                {
+                    <option value="@p.ProductId">@p.ProductName</option>
+                }
+            </select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Initial Quantity</label>
+            <input type="number" min="0" name="quantityAvailable" class="form-control" required />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Reorder Level</label>
+            <input type="number" min="0" name="reorderLevel" class="form-control" required />
+        </div>
+        <button type="submit" class="btn btn-primary">Initialize</button>
+    </form>
+}
+
+<p><a asp-action="Index">Back to Stock Overview</a></p>

@@ -1,0 +1,27 @@
+@{
+    var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
+    string ActiveClass(string controller) => string.Equals(currentController, controller, StringComparison.OrdinalIgnoreCase) ? "active" : "";
+    var fullName = Context.Session.GetString("FullName");
+    var username = Context.Session.GetString("Username");
+}
+
+<div class="sidebar-brand d-none d-md-block">Stock<span>Pilot</span></div>
+
+<nav class="sidebar-nav">
+    <a class="nav-link @ActiveClass("Dashboard")" asp-controller="Dashboard" asp-action="Index">Dashboard</a>
+    <a class="nav-link @ActiveClass("Category")" asp-controller="Category" asp-action="Index">Categories</a>
+    <a class="nav-link @ActiveClass("Product")" asp-controller="Product" asp-action="Index">Products</a>
+    <a class="nav-link @ActiveClass("Supplier")" asp-controller="Supplier" asp-action="Index">Suppliers</a>
+    <a class="nav-link @ActiveClass("Stock")" asp-controller="Stock" asp-action="Index">Stock</a>
+    <a class="nav-link @ActiveClass("Report")" asp-controller="Report" asp-action="Index">Reports</a>
+    <a class="nav-link @ActiveClass("Pwa")" asp-controller="Pwa" asp-action="Index">Mobile App</a>
+    <a class="nav-link @ActiveClass("Account")" asp-controller="Account" asp-action="ChangePassword">Change Password</a>
+
+    <button id="installBtn" type="button" class="btn btn-sm btn-outline-light m-2" hidden>Install App</button>
+    <button id="enableAlertsBtn" type="button" class="btn btn-sm btn-outline-light m-2">Enable Alerts</button>
+</nav>
+
+<div class="sidebar-footer">
+    <div class="user-info">@(fullName ?? username)</div>
+    <a asp-controller="Account" asp-action="Logout" class="logout-link">Logout</a>
+</div>

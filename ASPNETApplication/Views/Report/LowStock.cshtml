@@ -1,0 +1,48 @@
+@model List<InventoryManagement.Web.Models.Stock>
+
+@{
+    ViewData["Title"] = "Low Stock Report";
+}
+
+<h2 class="no-print">Low Stock Report</h2>
+
+<form method="get" asp-action="LowStock" class="filter-bar no-print">
+    <select name="supplierId" class="form-select">
+        <option value="">All Suppliers</option>
+        @foreach (var sup in (List<InventoryManagement.Web.Models.Supplier>)ViewBag.Suppliers)
+        {
+            <option value="@sup.SupplierId" selected="@(ViewBag.SupplierId != null && (int)ViewBag.SupplierId == sup.SupplierId)">@sup.SupplierName</option>
+        }
+    </select>
+    <button type="submit" class="btn btn-secondary">Filter</button>
+</form>
+
+<button onclick="window.print()" class="print-btn no-print">Print Report</button>
+
+<partial name="_ReportHeader" model="@("Low Stock Report")" />
+
+@if (Model.Count == 0)
+{
+    <p>No low stock items.</p>
+}
+else
+{
+    <div class="table-wrap">
+    <table>
+        <tr><th>Product</th><th>Supplier</th><th>Available</th><th>Reorder Level</th><th>Suggested Order Qty</th></tr>
+        @foreach (var s in Model)
+        {
+            var suggested = Math.Max(s.ReorderLevel * 2 - s.QuantityAvailable, 0);
+            <tr>
+                <td>@s.Product?.ProductName</td>
+                <td>@s.Product?.Supplier?.SupplierName</td>
+                <td>@s.QuantityAvailable</td>
+                <td>@s.ReorderLevel</td>
+                <td>@suggested</td>
+            </tr>
+        }
+    </table>
+    </div>
+}
+
+<p class="no-print"><a asp-action="Index">Back to Reports</a></p>

@@ -1,0 +1,44 @@
+@{
+    ViewData["Title"] = "Mobile App";
+}
+
+<div class="pwa-home">
+    <h2>StockPilot</h2>
+    <p class="text-muted">Quick access for warehouse and counter staff. Works offline too.</p>
+
+    <div class="row g-3 mt-2">
+        <div class="col-12 col-md-4">
+            <a class="pwa-tile card text-decoration-none h-100" asp-controller="Pwa" asp-action="Search">
+                <div class="card-body">
+                    <div class="fw-semibold fs-5">Product Search</div>
+                    <div class="text-muted small">Find products by name, category or supplier.</div>
+                </div>
+            </a>
+        </div>
+        <div class="col-12 col-md-4">
+            <a class="pwa-tile card text-decoration-none h-100" asp-controller="Pwa" asp-action="Stock">
+                <div class="card-body">
+                    <div class="fw-semibold fs-5">Stock Overview</div>
+                    <div class="text-muted small">Check current stock levels at a glance.</div>
+                </div>
+            </a>
+        </div>
+        <div class="col-12 col-md-4">
+            <a class="pwa-tile card text-decoration-none h-100" asp-controller="Pwa" asp-action="LowStock">
+                <div class="card-body">
+                    <div class="fw-semibold fs-5">Low Stock Alerts</div>
+                    <div class="text-muted small">See what needs reordering.</div>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <div class="d-grid gap-2 d-sm-flex mt-4">
+        <button type="button" class="btn btn-lg btn-outline-dark" data-role="install-btn" hidden>Install app</button>
+        <button type="button" class="btn btn-lg btn-outline-primary" data-role="enable-alerts-btn">Enable alerts</button>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/pwa-pages.js" asp-append-version="true"></script>
+}

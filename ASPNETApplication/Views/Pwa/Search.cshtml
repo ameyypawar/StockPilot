@@ -1,0 +1,19 @@
+@{
+    ViewData["Title"] = "Product Search";
+}
+
+<div data-page="search">
+    <h2>Product Search</h2>
+
+    <div class="mb-3">
+        <input type="search" id="q" class="form-control form-control-lg" placeholder="Search by name, category or supplier..." autocomplete="off" />
+    </div>
+
+    <div id="dataStatus" class="text-muted small mb-3"></div>
+
+    <div id="results"></div>
+</div>
+
+@section Scripts {
+    <script src="~/js/pwa-pages.js" asp-append-version="true"></script>
+}

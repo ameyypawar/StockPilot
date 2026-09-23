@@ -1,0 +1,23 @@
+@model InventoryManagement.Web.Models.Category
+
+@{
+    ViewData["Title"] = "Add Category";
+}
+
+<h2>Add New Category</h2>
+
+<form method="post" asp-action="Create">
+    <div asp-validation-summary="All" class="text-danger"></div>
+    <div class="mb-3">
+        <label class="form-label">Category Name</label>
+        <input type="text" asp-for="CategoryName" class="form-control" required />
+        <span asp-validation-for="CategoryName" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Description</label>
+        <textarea asp-for="Description" class="form-control"></textarea>
+    </div>
+    <button type="submit" class="btn btn-primary">Add Category</button>
+</form>
+
+<p><a asp-action="Index">Back to List</a></p>

@@ -1,0 +1,68 @@
+@{
+    var isAuth = Context.Session.GetInt32("UserId") != null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>@ViewData["Title"] - StockPilot</title>
+
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#1E293B" />
+    <link rel="apple-touch-icon" href="~/icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <link rel="icon" href="~/favicon.ico" />
+</head>
+<body data-auth="@(isAuth ? "1" : "0")">
+    @if (isAuth)
+    {
+        <div class="app-layout">
+            <div class="topbar d-md-none">
+                <button class="btn" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileNav" aria-controls="mobileNav">
+                    &#9776;
+                </button>
+                <span class="topbar-brand">StockPilot</span>
+            </div>
+
+            <div class="offcanvas offcanvas-start d-md-none" tabindex="-1" id="mobileNav">
+                <div class="offcanvas-header">
+                    <span class="sidebar-brand">Stock<span>Pilot</span></span>
+                    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+                </div>
+                <div class="offcanvas-body p-0">
+                    <partial name="_NavLinks" />
+                </div>
+            </div>
+
+            <aside class="sidebar d-none d-md-flex">
+                <partial name="_NavLinks" />
+            </aside>
+
+            <main class="main-content">
+                <div id="offlineBanner" hidden></div>
+                <partial name="_Alerts" />
+                @RenderBody()
+            </main>
+        </div>
+    }
+    else
+    {
+        <div class="auth-wrapper">
+            <div id="offlineBanner" hidden></div>
+            <partial name="_Alerts" />
+            @RenderBody()
+        </div>
+    }
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/js/pwa.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

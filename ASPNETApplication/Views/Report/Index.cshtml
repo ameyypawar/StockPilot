@@ -1,0 +1,28 @@
+@{
+    ViewData["Title"] = "Reports";
+}
+
+<h2>Reports</h2>
+
+<div class="report-grid">
+    <a asp-action="ProductCatalog" class="report-card">
+        <div class="report-card-title">Product Catalog</div>
+        <div class="report-card-desc">Full list of products with pricing and supplier info</div>
+    </a>
+    <a asp-action="StockSummary" class="report-card">
+        <div class="report-card-title">Stock Summary</div>
+        <div class="report-card-desc">Current stock levels across all products</div>
+    </a>
+    <a asp-action="LowStock" class="report-card">
+        <div class="report-card-title">Low Stock</div>
+        <div class="report-card-desc">Products at or below their reorder level</div>
+    </a>
+    <a asp-action="TransactionHistory" class="report-card">
+        <div class="report-card-title">Transaction History</div>
+        <div class="report-card-desc">Stock in/out log with filtering</div>
+    </a>
+    <a asp-action="InventoryValue" class="report-card">
+        <div class="report-card-title">Inventory Value</div>
+        <div class="report-card-desc">Total worth of current inventory</div>
+    </a>
+</div>

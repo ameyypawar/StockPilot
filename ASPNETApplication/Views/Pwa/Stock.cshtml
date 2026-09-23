@@ -1,0 +1,24 @@
+@{
+    ViewData["Title"] = "Stock Overview";
+}
+
+<div data-page="stock">
+    <h2>Stock Overview</h2>
+
+    <div id="summary" class="mb-3"></div>
+
+    <div class="btn-group mb-3 flex-wrap" role="group" aria-label="Status filter">
+        <button type="button" class="btn btn-lg btn-outline-secondary active" data-status-filter="all">All</button>
+        <button type="button" class="btn btn-lg btn-outline-success" data-status-filter="OK">OK</button>
+        <button type="button" class="btn btn-lg btn-outline-warning" data-status-filter="Low">Low</button>
+        <button type="button" class="btn btn-lg btn-outline-danger" data-status-filter="Out">Out</button>
+    </div>
+
+    <div id="dataStatus" class="text-muted small mb-3"></div>
+
+    <div id="results"></div>
+</div>
+
+@section Scripts {
+    <script src="~/js/pwa-pages.js" asp-append-version="true"></script>
+}

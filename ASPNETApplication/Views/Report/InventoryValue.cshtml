@@ -1,0 +1,50 @@
+@model List<InventoryValueRow>
+
+@{
+    ViewData["Title"] = "Inventory Value Report";
+    var byCategory = Model.GroupBy(r => r.CategoryName ?? "Uncategorized").OrderBy(g => g.Key);
+}
+
+<h2 class="no-print">Inventory Value Report</h2>
+
+<form method="get" asp-action="InventoryValue" class="filter-bar no-print">
+    <select name="categoryId" class="form-select">
+        <option value="">All Categories</option>
+        @foreach (var cat in (List<InventoryManagement.Web.Models.Category>)ViewBag.Categories)
+        {
+            <option value="@cat.CategoryId" selected="@(ViewBag.CategoryId != null && (int)ViewBag.CategoryId == cat.CategoryId)">@cat.CategoryName</option>
+        }
+    </select>
+    <button type="submit" class="btn btn-secondary">Filter</button>
+</form>
+
+<button onclick="window.print()" class="print-btn no-print">Print Report</button>
+
+<partial name="_ReportHeader" model="@("Inventory Value Report")" />
+
+<div class="table-wrap">
+<table>
+    <tr><th>Category</th><th>Product</th><th>Unit</th><th>Quantity</th><th>Price</th><th>Value</th></tr>
+    @foreach (var group in byCategory)
+    {
+        foreach (var item in group)
+        {
+            <tr>
+                <td>@item.CategoryName</td>
+                <td>@item.ProductName</td>
+                <td>@item.Unit</td>
+                <td>@item.Quantity</td>
+                <td>Rs. @item.Price.ToString("F2")</td>
+                <td>Rs. @item.Value.ToString("F2")</td>
+            </tr>
+        }
+        <tr>
+            <td colspan="5"><strong>Subtotal — @group.Key</strong></td>
+            <td><strong>Rs. @group.Sum(r => r.Value).ToString("F2")</strong></td>
+        </tr>
+    }
+</table>
+</div>
+
+<h3>Total Inventory Value: Rs. @(((decimal)ViewBag.TotalValue).ToString("F2"))</h3>
+<p class="no-print"><a asp-action="Index">Back to Reports</a></p>
